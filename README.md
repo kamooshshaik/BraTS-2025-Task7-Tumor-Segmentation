@@ -1,93 +1,194 @@
-# BraTS 2025 — Task 7: Brain Tumor Segmentation (MRI)
+# 🧠 BraTS Task 7: Brain Tumor Segmentation using Deep Learning Algorithms
 
-> End‑to‑end deep learning pipeline for brain tumor segmentation on the BraTS dataset (Task 7).  
-> Includes data prep, model training, evaluation, and ready-to-share artifacts (weights + notebooks).
-
-## 🔍 Project at a glance 
-- **Goal:** Segment tumor sub‑regions from multimodal MRI (FLAIR, T1, T1ce, T2).  
-- **Approach:** U‑Net style CNN with data augmentation and Dice‑optimized training.  
-- **Deliverables:** Reproducible notebook(s), trained weights (`.h5`), and evaluation scripts.  
-- **Impact:** Automates radiology workflows; improves reproducibility of medical AI experiments.
+This repository contains the implementation of an **Enhanced 3D U-Net with Attention Gates** for **Brain Tumor Segmentation** on the **BraTS-GoAT 2025 dataset**.  
+The pipeline includes **preprocessing, model training, validation, testing, and visualization** for clinical-grade segmentation.
 
 ---
 
-## 📂 Repository Structure
-```
-.
-├── brats2025_task7.ipynb         # Main training/inference notebook
-├── best_model.weights.h5         # Best checkpoint (Git LFS recommended)
-├── weights_epoch_045.weights.h5  # Example epoch checkpoint
-├── brats_train_val_data.zip      # (Optional) Sample data pack (do not commit large zips)
-├── README.md
-├── requirements.txt
-└── LICENSE
-```
-> Tip: Keep large files out of git history. Use **Git LFS** for `.h5` or upload to release assets/Drive.
+## 📌 Table of Contents
+1. [Requirements](#requirements)
+2. [Dataset](#dataset)
+3. [Preprocessing](#preprocessing)
+4. [Model Architecture](#model-architecture)
+5. [Training](#training)
+6. [Evaluation](#evaluation)
+7. [Results](#results)
+8. [Future Work](#future-work)
+9. [Usage](#usage)
+10. [References](#references)
 
 ---
 
-## 🧠 Methodology
-- **Backbone:** U‑Net (encoder–decoder with skip connections).  
-- **Input:** Multimodal MRI volumes/slices (BraTS convention).  
-- **Loss:** Dice (± focal/CE blend) to handle class imbalance.  
-- **Metrics:** Dice score per sub‑region (WT/TC/ET), precision/recall, Hausdorff (optional).  
-- **Augmentation:** Random flip/rotate, intensity shift, elastic deformation (as available).  
-- **Training:** Early stopping + best‑checkpoint saving.
+## ⚙️ Requirements
 
-> This repository includes two Jupyter notebooks so recruiters can review the full workflow without setting up a package.
+Install required dependencies:
 
----
-
-## 🚀 Quickstart
-
-### 1) Clone and set up
 ```bash
-git clone https://github.com/<your-username>/BraTS-2025-Task7-Tumor-Segmentation.git
-cd BraTS-2025-Task7-Tumor-Segmentation
-python -m venv .venv && source .venv/bin/activate  # on Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install numpy pandas tensorflow nibabel scikit-learn matplotlib seaborn tqdm
 ```
 
-### 2) Data
-- Use official **BraTS** dataset (register on the organizer's site) or your curated subset.  
-- Put data under `data/` (ignored by git). For quick tests you can extract `brats_train_val_data.zip` locally.
+Main libraries:
+- **TensorFlow / Keras** → Deep learning framework  
+- **Nibabel** → Read MRI `.nii` files  
+- **NumPy / Pandas** → Data handling  
+- **Matplotlib / Seaborn** → Visualizations  
+- **tqdm** → Progress bars  
 
+> ⚡ GPU (NVIDIA T4 / V100 / A100) recommended. Mixed precision training is enabled.
+
+---
+
+## 📂 Dataset
+
+We used the **BraTS-GoAT 2025 dataset**.
+
+- **Modalities**: T1, T1c, T2, FLAIR  
+- **Classes**: Background, Edema, Enhancing Tumor  
+- **Usable cases**: ~1,100  
+  - Training: 979  
+  - Validation: 110  
+- **Patch size**: `(48, 48, 48, 4)` input, `(48, 48, 48)` labels  
+
+👉 Download dataset from [BraTS Challenge](https://www.med.upenn.edu/cbica/brats2025/).
+
+---
+
+## 🧹 Preprocessing
+
+Steps applied before training:
+
+1. Load MRI volumes (`.nii`) using Nibabel  
+2. Normalize intensities to a fixed range  
+3. Handle corrupted/missing scans  
+4. Extract **patches** of size `(48, 48, 48, 4)`  
+5. Generate training/validation splits  
+
+Example preprocessing script:
+
+```bash
+python preprocess.py --input /path/to/raw_data --output /path/to/processed_data
 ```
-data/
- ├── train/
- ├── val/
- └── test/
+
+---
+
+## 🏗️ Model Architecture
+
+We implemented an **Enhanced 3D U-Net with Attention Gates**.
+
+- **Input**: `(48, 48, 48, 4)`  
+- **Output classes**: 3 (background, edema, enhancing)  
+- **Parameters**: ~22.6M trainable  
+- **Loss**: Hybrid (Dice + Cross-Entropy, α = 0.5)  
+- **Metrics**: Dice coefficient, Sparse Categorical Accuracy  
+
+---
+
+## 🚀 Training
+
+Training configuration:
+- **Optimizer**: Adam (`lr=1e-4`)  
+- **Batch size**: 2  
+- **Epochs**: 100 (with checkpoints)  
+- **Mixed precision**: Enabled  
+- **Data augmentation**: random flips, rotations, intensity shifts  
+
+Run training:
+
+```bash
+python train.py --data /path/to/processed_data --epochs 100 --batch 2
 ```
 
-### 3) Run
-- Open `brats2025_task7.ipynb` and run cells end‑to‑end (training + evaluation + inference).  
-- Trained weights will be saved as `.h5` under `models/` or project root (as configured in the notebook).
+Checkpoints will be saved in `/model_checkpoints/`.
 
 ---
 
-## 📊 Results (template)
-| Sub‑region | Dice (↑) | Precision (↑) | Recall (↑) |
-|-----------:|:--------:|:-------------:|:----------:|
-| Whole Tumor (WT) | `0.90±0.02` | `0.91` | `0.89` |
-| Tumor Core (TC)  | `0.86±0.03` | `0.87` | `0.85` |
-| Enhancing Tumor (ET) | `0.79±0.05` | `0.81` | `0.78` |
+## 📊 Evaluation
 
-> Replace the above with your actual numbers. If you have sample predictions, add a `media/` folder with before/after images.
+Load best model weights and evaluate:
+
+```python
+from model import build_unet
+import tensorflow as tf
+
+model = build_unet()
+model.load_weights("model_checkpoints/best_model.weights.h5")
+
+results = model.evaluate(val_dataset)
+print("Validation Results:", results)
+```
+
+Validation performance:
+- **Accuracy**: 99.8%  
+- **Dice coefficient**: ~0.78 overall  
+- **Best-case tumor Dice**: 0.92  
+- **Prediction time**: 0.094s per case  
 
 ---
 
-## 🧩 Key Files
-- **`brats2025_task7.ipynb`** — clean, reproducible pipeline (data prep → training → eval → inference).  
-- **`brats-task7.ipynb`** — ablations/experiments.  
-- **`best_model.weights.h5`** — best performing checkpoint (use **Git LFS**).
+## 🏆 Results
+
+### Random Test Cases
+- **Case BraTS-GoAT-01845** → Tumor Dice: **0.9202**  
+- **Case BraTS-GoAT-02357** → Tumor Dice: **0.8862**  
+- **Case BraTS-GoAT-00084** → Tumor Dice: **0.3528** (challenging case)  
+
+### Summary Statistics
+- **Accuracy**: Mean 0.9959 ± 0.0046  
+- **Dice Scores**:  
+  - Background: 0.9990 ± 0.0008  
+  - Edema: 0.7242 ± 0.2644  
+  - Enhancing: 0.7839 ± 0.1560  
+  - Mean Tumor: 0.7541 ± 0.2061  
+- **Mean prediction time**: 0.094s  
 
 ---
 
-## 🛡️ Ethics & Compliance
-- Medical data must be used under the dataset license/consent.  
-- Models are **research‑only**; not a clinical device. Validate thoroughly before any clinical use.
+## 🔮 Future Work
+
+- Improve segmentation for **low-contrast tumors**  
+- Integrate **transformer-based models (TransUNet, SwinUNETR)**  
+- Deploy with **ONNX/TensorRT** for faster inference  
+- Explore **semi-supervised learning** with unlabeled MRI data  
 
 ---
 
+## ▶️ Usage
 
-**Built a U‑Net based MRI pipeline for BraTS brain‑tumor segmentation (Task 7), delivered trained weights and reproducible notebooks, and reported Dice‑optimized results across tumor sub‑regions.**
+1. **Clone repo**  
+   ```bash
+   git clone https://github.com/kamooshshaik/BraTS-2025-Task7-Tumor-Segmentation.git
+   cd BraTS-2025-Task7-Tumor-Segmentation
+   ```
+
+2. **Preprocess dataset**  
+   ```bash
+   python preprocess.py --input /dataset --output /processed_data
+   ```
+
+3. **Train model**  
+   ```bash
+   python train.py --data /processed_data --epochs 100 --batch 2
+   ```
+
+4. **Evaluate model**  
+   ```bash
+   python evaluate.py --weights model_checkpoints/best_model.weights.h5 --data /processed_data
+   ```
+
+5. **Visualize predictions**  
+   ```bash
+   python visualize.py --weights model_checkpoints/best_model.weights.h5 --sample BraTS-GoAT-01845
+   ```
+
+---
+
+## 📖 References
+- [BraTS Challenge 2025](https://www.med.upenn.edu/cbica/brats2025/)  
+- Olaf Ronneberger et al., *U-Net: Convolutional Networks for Biomedical Image Segmentation*  
+- Isensee et al., *nnU-Net: A Self-adapting Framework for Biomedical Image Segmentation*  
+
+---
+
+## 👨‍💻 Author
+Developed by **Shaik Kamoosh Baba**  
+M.Tech – Civil Engineering (Geoinformatics), IIT Kanpur  

@@ -3,7 +3,7 @@
 > End‑to‑end deep learning pipeline for brain tumor segmentation on the BraTS dataset (Task 7).  
 > Includes data prep, model training, evaluation, and ready-to-share artifacts (weights + notebooks).
 
-## 🔍 Project at a glance (resume‑friendly)
+## 🔍 Project at a glance 
 - **Goal:** Segment tumor sub‑regions from multimodal MRI (FLAIR, T1, T1ce, T2).  
 - **Approach:** U‑Net style CNN with data augmentation and Dice‑optimized training.  
 - **Deliverables:** Reproducible notebook(s), trained weights (`.h5`), and evaluation scripts.  
@@ -15,7 +15,6 @@
 ```
 .
 ├── brats2025_task7.ipynb         # Main training/inference notebook
-├── brats-task7.ipynb             # Variant/experiments
 ├── best_model.weights.h5         # Best checkpoint (Git LFS recommended)
 ├── weights_epoch_045.weights.h5  # Example epoch checkpoint
 ├── brats_train_val_data.zip      # (Optional) Sample data pack (do not commit large zips)
